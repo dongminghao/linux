@@ -83,18 +83,23 @@ static struct s3c2410_uartcfg at2440evb_uartcfgs[] __initdata = {
 
 static struct mtd_partition __initdata at2440evb_default_nand_part[] = {
 	[0] = {
-		.name	= "Boot Agent",
-		.size	= SZ_256K,
+		.name	= "U-boot",
+		.size	= SZ_512K,
 		.offset	= 0,
 	},
 	[1] = {
-		.name	= "Kernel",
-		.size	= SZ_2M,
-		.offset	= SZ_256K,
+		.name	= "Prarm",
+		.size	= SZ_512K,
+		.offset	= SZ_512K,
 	},
 	[2] = {
-		.name	= "Root",
-		.offset	= SZ_256K + SZ_2M,
+		.name	= "Kernel",
+		.size	= SZ_4M,
+		.offset	= SZ_1M,
+	},
+	[3] = {
+		.name	= "RootFS",
+		.offset	= SZ_4M+SZ_1M,
 		.size	= MTDPART_SIZ_FULL,
 	},
 };
@@ -109,21 +114,28 @@ static struct s3c2410_nand_set __initdata at2440evb_nand_sets[] = {
 };
 
 static struct s3c2410_platform_nand __initdata at2440evb_nand_info = {
-	.tacls		= 25,
-	.twrph0		= 55,
-	.twrph1		= 40,
+	.tacls		= 10,
+	.twrph0		= 25,
+	.twrph1		= 10,
 	.nr_sets	= ARRAY_SIZE(at2440evb_nand_sets),
 	.sets		= at2440evb_nand_sets,
 };
 
 /* DM9000AEP 10/100 ethernet controller */
-
+/*
 static struct resource at2440evb_dm9k_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C2410_CS3, 4),
 	[1] = DEFINE_RES_MEM(S3C2410_CS3 + 4, 4),
 	[2] = DEFINE_RES_NAMED(IRQ_EINT7, 1, NULL, IORESOURCE_IRQ \
 					| IORESOURCE_IRQ_HIGHEDGE),
+};*/
+static struct resource at2440evb_dm9k_resource[] = {
+	[0] = DEFINE_RES_MEM(S3C2410_CS3+0x300, 3),
+	[1] = DEFINE_RES_MEM(S3C2410_CS3+0x300 + 4, 3),
+	[2] = DEFINE_RES_NAMED(IRQ_EINT7, 1, NULL, IORESOURCE_IRQ \
+					| IORESOURCE_IRQ_HIGHEDGE),
 };
+
 
 static struct dm9000_plat_data at2440evb_dm9k_pdata = {
 	.flags		= (DM9000_PLATF_16BITONLY | DM9000_PLATF_NO_EEPROM),
