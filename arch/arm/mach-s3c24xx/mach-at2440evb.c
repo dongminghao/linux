@@ -15,15 +15,18 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/gpio.h>
+#include <linux/gpio_keys.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/input.h>
 #include <linux/io.h>
 #include <linux/serial_core.h>
 #include <linux/serial_s3c.h>
 #include <linux/dm9000.h>
 #include <linux/platform_device.h>
+
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -50,6 +53,7 @@
 #include <linux/platform_data/mmc-s3cmci.h>
 #include <plat/samsung-time.h>
 
+#include <sound/s3c24xx_uda134x.h>
 #include "common.h"
 
 static struct map_desc at2440evb_iodesc[] __initdata = {
@@ -71,6 +75,14 @@ static struct s3c2410_uartcfg at2440evb_uartcfgs[] __initdata = {
 	},
 	[1] = {
 		.hwport	     = 1,
+		.flags	     = 0,
+		.ucon	     = UCON,
+		.ulcon	     = ULCON,
+		.ufcon	     = UFCON,
+		.clk_sel	= S3C2410_UCON_CLKSEL1 | S3C2410_UCON_CLKSEL2,
+	},
+	[2] = {
+		.hwport	     = 2,
 		.flags	     = 0,
 		.ucon	     = UCON,
 		.ulcon	     = ULCON,
@@ -167,19 +179,19 @@ static struct s3c2410fb_display at2440evb_lcd_cfg __initdata = {
 
 	.type		= S3C2410_LCDCON1_TFT,
 
-	.width		= 800,
-	.height		= 480,
+	.width		= 240,
+	.height		= 320,
 
-	.pixclock	= 33333, /* HCLK 60 MHz, divisor 2 */
-	.xres		= 800,
-	.yres		= 480,
+	.pixclock	= 166667, /* HCLK 60 MHz, divisor 2 */
+	.xres		= 240,
+	.yres		= 320,
 	.bpp		= 16,
-	.left_margin	= 88,
-	.right_margin	= 40,
-	.hsync_len	= 128,
-	.upper_margin	= 32,
-	.lower_margin	= 11,
-	.vsync_len	= 2,
+	.left_margin	= 7,
+	.right_margin	= 19,
+	.hsync_len	= 3,
+	.upper_margin	= 6,
+	.lower_margin	= 7,
+	.vsync_len	= 3,
 };
 
 static struct s3c2410fb_mach_info at2440evb_fb_info __initdata = {
@@ -188,16 +200,134 @@ static struct s3c2410fb_mach_info at2440evb_fb_info __initdata = {
 	.default_display = 0,
 };
 
+//buttons
+/*
+#define DECLARE_BUTTON(p, k, n, w)	\
+	{				\
+		.gpio		= p,	\
+		.code		= k,	\
+		.desc		= n,	\
+		.wakeup		= w,	\
+		.active_low	= 1,	\
+	}
+static struct gpio_keys_button at2440_buttons[] = {
+        DECLARE_BUTTON(S3C2410_GPF(3),KEY_1,"BUTTON1",0),
+        DECLARE_BUTTON(S3C2410_GPF(4),KEY_2,"BUTTON2",0),
+        DECLARE_BUTTON(S3C2410_GPF(5),KEY_3,"BUTTON3",0),
+        DECLARE_BUTTON(S3C2410_GPF(6),KEY_4,"BUTTON4",0),
+};
+*/
+static struct gpio_keys_button at2440_buttons[] = {
+	{
+		.gpio		= S3C2410_GPF(3),		/* K1 */
+		.code		= KEY_1,
+		.desc		= "BUTTON1",
+		.active_low	= 1,
+	},
+	{
+		.gpio		= S3C2410_GPF(4),		/* K2 */
+		.code		= KEY_2,
+		.desc		= "BUTTON2",
+		.active_low	= 1,
+	},
+	{
+		.gpio		= S3C2410_GPF(5),		/* K3 */
+		.code		= KEY_3,
+		.desc		= "BUTTON3",
+		.active_low	= 1,
+	},
+	{
+		.gpio		= S3C2410_GPF(6),		/* K4 */
+		.code		= KEY_4,
+		.desc		= "BUTTON4",
+		.active_low	= 1,
+	},
+
+};
+static struct gpio_keys_platform_data at2440_buttons_data = {
+        .buttons  = at2440_buttons,
+        .nbuttons = ARRAY_SIZE(at2440_buttons),
+};
+
+struct platform_device s3c_device_buttons = {
+        .name             = "gpio-keys",
+        .id               = -1,
+		.dev		= {
+			.platform_data  = &at2440_buttons_data,
+		}
+};
+
+/* AUDIO */
+
+static struct s3c24xx_uda134x_platform_data at2440evb_audio_pins = {
+	.l3_clk = S3C2410_GPB(4),
+	.l3_mode = S3C2410_GPB(2),
+	.l3_data = S3C2410_GPB(3),
+	.model = UDA134X_UDA1341
+};
+
+static struct platform_device at2440evb_audio = {
+	.name		= "s3c24xx_uda134x",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &at2440evb_audio_pins,
+	},
+};
+
+static struct uda134x_platform_data s3c24xx_uda134x = {
+	.l3 = {
+		.gpio_clk = S3C2410_GPB(4),
+		.gpio_data = S3C2410_GPB(3),
+		.gpio_mode = S3C2410_GPB(2),
+		.use_gpios = 1,
+		.data_hold = 1,
+		.data_setup = 1,
+		.clock_high = 1,
+		.mode_hold = 1,
+		.mode = 1,
+		.mode_setup = 1,
+	},
+	.model = UDA134X_UDA1341,
+};
+
+static struct platform_device uda134x_codec = {
+		.name = "uda134x-codec",
+		.id = -1,
+		.dev = {
+			.platform_data	= &s3c24xx_uda134x,
+		},
+};
+
+//touch screen
+/*
+struct platform_device s3c_device_ts = {
+	.name		  = "s3c2410-ts",
+	.id		  = -1,
+};
+
+static struct s3c2410_ts_mach_info at2440evb_ts_info = {
+	.delay = 10000,
+	.presc = 49,
+	.oversampling_shift = 2,
+};
+*/
 static struct platform_device *at2440evb_devices[] __initdata = {
 	&s3c_device_ohci,
 	&s3c_device_wdt,
-	&s3c_device_adc,
 	&s3c_device_i2c0,
 	&s3c_device_rtc,
+	&s3c_device_usbgadget,
+	&at2440evb_device_eth,
+	&s3c_device_buttons,
 	&s3c_device_nand,
 	&s3c_device_sdi,
+	&s3c2440_device_dma,
+	&s3c_device_adc,	
 	&s3c_device_lcd,
-	&at2440evb_device_eth,
+	&s3c_device_iis,
+	&uda134x_codec,
+	&at2440evb_audio,
+	&s3c_device_ts,
 };
 
 static void __init at2440evb_map_io(void)
